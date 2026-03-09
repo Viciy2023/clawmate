@@ -215,7 +215,7 @@ npm run clawmate:setup
 {
   "videoProvider": "grokvideo",
   "providers": {
-    "grokvideosougou": {
+    "grokvideo": {
       "apiKey": "YOUR_GROK_API_KEY",
       "baseUrl": "https://api.x.ai/v1",
       "model": "grok-imagine-1.0-video",
