@@ -14,6 +14,7 @@
       "characterRoot": { "type": "string" },
       "userCharacterRoot": { "type": "string" },
       "defaultProvider": { "type": "string" },
+      "videoProvider": { "type": "string" },
       "fallback": {
         "type": "object",
         "additionalProperties": false,

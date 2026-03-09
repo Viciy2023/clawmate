@@ -6,14 +6,11 @@ export interface TimeStateDefinition {
   [key: string]: unknown;
 }
 
-export type SelfieMode = "mirror" | "direct";
-
-export type CharacterStyle = "photorealistic" | "anime";
+export type SelfieMode = "mirror" | "direct" | "boyfriend";
 
 export interface CharacterMeta {
   id?: string;
   name?: string;
-  style?: CharacterStyle;
   timeStates?: Record<string, TimeStateDefinition>;
   [key: string]: unknown;
 }
@@ -54,6 +51,7 @@ export interface ClawMateConfig {
   characterRoot: string;
   userCharacterRoot: string;
   defaultProvider: string;
+  videoProvider?: string;
   fallback: FallbackPolicy;
   retry: RetryPolicy;
   pollIntervalMs: number;
@@ -128,7 +126,6 @@ export interface CreateCharacterMeta {
   id: string;
   name: string;
   englishName?: string;
-  style?: CharacterStyle;
   descriptionZh?: string;
   descriptionEn?: string;
   timeStates?: Record<string, TimeStateDefinition>;
@@ -136,14 +133,13 @@ export interface CreateCharacterMeta {
 
 export type ReferenceImageSource =
   | { source: "existing"; characterId: string }
-  | { source: "local"; path: string }
-  | { source: "none" };
+  | { source: "local"; path: string };
 
 export interface CreateCharacterInput {
   characterId: string;
   meta: CreateCharacterMeta;
   characterPrompt: string;
-  referenceImage?: ReferenceImageSource;
+  referenceImage: ReferenceImageSource;
 }
 
 export interface CreateCharacterResult {
