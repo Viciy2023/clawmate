@@ -85,7 +85,7 @@ export function normalizeConfig(raw: unknown): ClawMateConfig {
   const pollIntervalMs = toFiniteNumber(source.pollIntervalMs);
   const pollTimeoutMs = toFiniteNumber(source.pollTimeoutMs);
 
-  return {
+  const config: ClawMateConfig = {
     selectedCharacter:
       typeof source.selectedCharacter === "string" && source.selectedCharacter
         ? source.selectedCharacter
@@ -111,6 +111,17 @@ export function normalizeConfig(raw: unknown): ClawMateConfig {
         ? source.userCharacterRoot
         : defaultUserCharacterRoot(),
   };
+
+  // 添加 videoProvider 和 fastProvider 支持
+  if (typeof source.videoProvider === "string" && source.videoProvider) {
+    config.videoProvider = source.videoProvider;
+  }
+
+  if (typeof source.fastProvider === "string" && source.fastProvider) {
+    config.fastProvider = source.fastProvider;
+  }
+
+  return config;
 }
 
 export async function loadConfig(options: LoadConfigOptions = {}): Promise<LoadedConfig> {

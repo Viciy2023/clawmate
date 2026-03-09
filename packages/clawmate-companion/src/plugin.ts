@@ -10,6 +10,7 @@ import { createCharacter } from "./core/character-creator";
 import { createLogger } from "./core/logger";
 import { normalizeConfig, defaultUserCharacterRoot } from "./core/config";
 import { generateVideo } from "./video-pipeline";
+import { generateImageFast } from "./image-fast-pipeline";
 import type { ClawMateConfig, CreateCharacterInput, GenerateSelfieFailure, GenerateSelfieResult, SelfieMode } from "./core/types";
 
 interface PluginConfigInput {
@@ -866,6 +867,131 @@ export default function registerClawMateCompanion(api: OpenClawPluginApiLike): v
             text: JSON.stringify({
               ok: false,
               message: "视频生成失败",
+              error: error instanceof Error ? error.message : String(error)
+            })
+          }]
+        };
+      }
+    }
+  });
+
+  api.registerTool({
+    name: "clawmate_generate_image",
+    description: "纯文本生图工具（无需参考图）。适用于生成非角色相关的图片，如动物、风景、物品、场景等。使用grok-imagine-1.0模型快速生成。生成的图片可以用于后续的视频生成。【重要】1) 当用户要求生成非角色图片时使用此工具（如'生成一张小猫图片'、'画一个风景'等）。2) 生成成功后，返回结果中包含originalImageUrl字段，可用于视频生成。3) 必须在回复中输出mediaLine来发送图片。",
+    parameters: {
+      type: "object",
+      additionalProperties: false,
+      required: ["prompt"],
+      properties: {
+        prompt: {
+          type: "string",
+          description: "图片描述提示词（英文，50-100词），描述要生成的图片内容"
+        },
+        n: {
+          type: "number",
+          description: "生成数量（1-10），默认1",
+          default: 1,
+          minimum: 1,
+          maximum: 10
+        },
+        size: {
+          type: "string",
+          enum: ["1280x720", "720x1280", "1792x1024", "1024x1792", "1024x1024"],
+          description: "图片尺寸，默认1024x1024",
+          default: "1024x1024"
+        }
+      }
+    },
+    async execute(_toolCallId: string, rawParams: ToolParams) {
+      const params = rawParams as unknown as {
+        prompt: string;
+        n?: number;
+        size?: string;
+      };
+
+      const config = resolveRuntimeConfig(api);
+
+      logger.info("纯文本生图工具调用", {
+        tool: "clawmate_generate_image",
+        prompt: params.prompt.slice(0, 100),
+        n: params.n || 1,
+        size: params.size || "1024x1024"
+      });
+
+      try {
+        const result = await generateImageFast({
+          config,
+          prompt: params.prompt,
+          n: params.n || 1,
+          size: params.size || "1024x1024",
+          logger
+        });
+
+        if (result.ok) {
+          // 下载图片到本地
+          let localImagePath: string;
+          try {
+            localImagePath = await persistImageToLocal(result.imageUrl, result.requestId);
+            logger.info("图片已下载到本地", {
+              remoteUrl: result.imageUrl,
+              localPath: localImagePath
+            });
+          } catch (error) {
+            logger.error("图片下载失败", {
+              imageUrl: result.imageUrl,
+              error: error instanceof Error ? error.message : String(error)
+            });
+            throw new Error(`图片下载失败: ${error instanceof Error ? error.message : String(error)}`);
+          }
+
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                ok: true,
+                imageUrl: localImagePath, // 本地路径，用于显示
+                originalImageUrl: result.imageUrl, // 原始HTTP URL，用于视频生成
+                imageMarkdown: `![generated-image](${localImagePath})`,
+                mediaLine: `MEDIA: ${localImagePath}`,
+                provider: result.provider,
+                requestId: result.requestId,
+                prompt: result.prompt,
+                message: "图片生成成功！",
+                _MANDATORY_ACTION: "YOU MUST output the mediaLine in your response to send the image. This is MANDATORY.",
+                _MANDATORY_ACTION_ZH: "你必须在回复中输出 mediaLine 来发送图片。这是强制性的。",
+                _VIDEO_GENERATION_HINT: "If user wants to generate video from this image, use clawmate_generate_video tool with the originalImageUrl field.",
+                _VIDEO_GENERATION_HINT_ZH: "如果用户想用这张图片生成视频，使用 clawmate_generate_video 工具，传入 originalImageUrl 字段。"
+              })
+            }]
+          };
+        } else {
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                ok: false,
+                provider: result.provider,
+                requestId: result.requestId,
+                message: result.message || "图片生成失败",
+                error: result.error
+              })
+            }]
+          };
+        }
+      } catch (error) {
+        logger.error("纯文本生图工具执行失败", {
+          tool: "clawmate_generate_image",
+          error: error instanceof Error ? error.message : String(error)
+        });
+
+        return {
+          content: [{
+            type: "text",
+            text: JSON.stringify({
+              ok: false,
+              provider: null,
+              requestId: null,
+              message: "图片生成失败",
               error: error instanceof Error ? error.message : String(error)
             })
           }]

@@ -32,13 +32,13 @@ function extractVideoUrl(html: string): { videoUrl: string; previewUrl: string }
 export async function generateVideo(options: GenerateVideoOptions): Promise<VideoResult> {
   const { config, baseImageUrl, prompt, duration = 6, aspectRatio = "16:9", logger } = options;
   
-  const providerName = config.videoProvider || "grokvideosougou";
-  const provider = config.providers[providerName];
+  const videoProviderName = config.videoProvider || config.defaultProvider;
+  const provider = config.providers[videoProviderName];
   
   if (!provider) {
     return {
       ok: false,
-      error: `Video provider ${providerName} not found`,
+      error: `Video provider ${videoProviderName} not found`,
       message: "视频生成配置错误"
     };
   }
@@ -57,8 +57,19 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<Vide
   }
 
   try {
+    const model = provider.model;
+    if (!model) {
+      return {
+        ok: false,
+        provider: videoProviderName,
+        requestId: null,
+        message: "视频生成失败",
+        error: `Provider "${videoProviderName}" missing model configuration`
+      };
+    }
+
     const requestBody = {
-      model: provider.model || "grok-imagine-1.0-video",
+      model,
       messages: [
         {
           role: "user",
@@ -86,7 +97,7 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<Vide
     };
 
     logger.info("调用视频生成接口", {
-      provider: providerName,
+      provider: videoProviderName,
       imageUrl: baseImageUrl,
       prompt,
       duration,
@@ -139,7 +150,7 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<Vide
     }
 
     logger.info("视频生成成功", {
-      provider: providerName,
+      provider: videoProviderName,
       videoUrl,
       previewUrl
     });
@@ -148,19 +159,19 @@ export async function generateVideo(options: GenerateVideoOptions): Promise<Vide
       ok: true,
       videoUrl,
       previewUrl,
-      provider: providerName,
+      provider: videoProviderName,
       requestId: undefined
     };
 
   } catch (error) {
     logger.error("视频生成失败", {
-      provider: providerName,
+      provider: videoProviderName,
       error: error instanceof Error ? error.message : String(error)
     });
 
     return {
       ok: false,
-      provider: providerName,
+      provider: videoProviderName,
       requestId: undefined,
       message: "视频生成失败",
       error: error instanceof Error ? error.message : String(error)
